@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Hikvision Doorbell Setup",
+        "description": "Configure your Hikvision Doorbell integration",
+        "data": {
+          "middleware_url": "Middleware URL",
+          "rtsp_url": "RTSP Stream URL (optional)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to middleware. Please check the URL and ensure the middleware is running.",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "This middleware is already configured"
+    }
+  }
+}
