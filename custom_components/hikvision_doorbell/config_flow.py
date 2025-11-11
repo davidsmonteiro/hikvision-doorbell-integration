@@ -12,14 +12,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import CONF_MIDDLEWARE_URL, CONF_RTSP_URL, DOMAIN
+from .const import CONF_SERVER_URL, CONF_RTSP_URL, DOMAIN
 from .coordinator import HikvisionDoorbellCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_MIDDLEWARE_URL, default="http://localhost:8080"): str,
+        vol.Required(CONF_SERVER_URL, default="http://localhost:8080"): str,
         vol.Optional(CONF_RTSP_URL): str,
     }
 )
@@ -27,12 +27,12 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
-    coordinator = HikvisionDoorbellCoordinator(hass, data[CONF_MIDDLEWARE_URL])
+    coordinator = HikvisionDoorbellCoordinator(hass, data[CONF_SERVER_URL])
 
     try:
         await coordinator.async_test_connection()
     except Exception as err:
-        _LOGGER.error("Cannot connect to middleware: %s", err)
+        _LOGGER.error("Cannot connect to server: %s", err)
         raise CannotConnect from err
 
     return {"title": "Hikvision Doorbell"}
@@ -57,9 +57,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
-                # Store middleware_url as CONF_HOST for coordinator
+                # Store server_url as CONF_HOST for coordinator
                 data = {
-                    CONF_HOST: user_input[CONF_MIDDLEWARE_URL],
+                    CONF_HOST: user_input[CONF_SERVER_URL],
                 }
                 if CONF_RTSP_URL in user_input:
                     data[CONF_RTSP_URL] = user_input[CONF_RTSP_URL]

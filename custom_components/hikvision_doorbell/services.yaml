@@ -1,32 +1,6 @@
-start_2way:
-  name: Start Two-Way Audio
-  description: Start a two-way audio session with the doorbell
-  fields:
-    entity_id:
-      name: Entity
-      description: Camera entity to start two-way audio session
-      required: true
-      selector:
-        entity:
-          domain: camera
-          integration: hikvision_doorbell
-
-stop_2way:
-  name: Stop Two-Way Audio
-  description: Stop the active two-way audio session
-  fields:
-    entity_id:
-      name: Entity
-      description: Camera entity to stop two-way audio session
-      required: true
-      selector:
-        entity:
-          domain: camera
-          integration: hikvision_doorbell
-
 send_file:
   name: Send Audio File
-  description: Send an audio file to the doorbell (must be G.711 µ-law, 8000Hz, mono)
+  description: Send an audio file to the doorbell speaker (any common audio format - server handles conversion)
   fields:
     entity_id:
       name: Entity
@@ -38,8 +12,8 @@ send_file:
           integration: hikvision_doorbell
     audio_file:
       name: Audio File
-      description: Path to audio file (must be G.711 µ-law format)
+      description: Path to audio file (MP3, WAV, OGG, etc. - will be automatically converted)
       required: true
-      example: "/config/doorbell_message.raw"
+      example: "/config/doorbell_message.mp3"
       selector:
         text:
