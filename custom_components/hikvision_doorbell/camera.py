@@ -50,7 +50,7 @@ class HikvisionDoorbellCamera(Camera):
     def device_info(self):
         """Return device information."""
         return {
-            "identifiers": {(DOMAIN, self._coordinator.middleware_url)},
+            "identifiers": {(DOMAIN, self._coordinator.server_url)},
             "name": DEFAULT_NAME,
             "manufacturer": "Hikvision",
             "model": "Doorbell",
@@ -76,6 +76,5 @@ class HikvisionDoorbellCamera(Camera):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return extra state attributes."""
         return {
-            "middleware_url": self._coordinator.middleware_url,
-            "session_active": self._coordinator._session_active,
+            "server_url": self._coordinator.server_url,
         }

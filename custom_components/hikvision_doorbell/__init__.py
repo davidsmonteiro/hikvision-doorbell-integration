@@ -48,6 +48,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
+    # Register Lovelace resource for custom card
+    _register_lovelace_resource(hass)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Register service
@@ -97,3 +100,16 @@ def _get_coordinator_from_entity(hass: HomeAssistant, entity_id: str) -> Hikvisi
         raise HomeAssistantError(f"Entity not found: {entity_id}")
 
     return hass.data[DOMAIN][entity_entry.config_entry_id]
+
+
+def _register_lovelace_resource(hass: HomeAssistant) -> None:
+    """Register the custom Lovelace card resource."""
+    # The card will be available at:
+    # /local/community/hikvision_doorbell/hikvision-doorbell-card.js
+    # Users need to add it manually to their Lovelace resources or use HACS
+    _LOGGER.info(
+        "Hikvision Doorbell custom card is available. "
+        "Add the following resource to your Lovelace dashboard:\n"
+        "URL: /hacsfiles/hikvision_doorbell/hikvision-doorbell-card.js\n"
+        "Type: JavaScript Module"
+    )
