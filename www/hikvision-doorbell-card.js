@@ -19,11 +19,15 @@ class HikvisionDoorbellCard extends HTMLElement {
       throw new Error('You need to define an entity');
     }
     this.config = config;
-    this.render();
   }
 
   set hass(hass) {
     this._hass = hass;
+
+    // Render on first hass set if not rendered yet
+    if (!this.shadowRoot.querySelector('.card-content')) {
+      this.render();
+    }
 
     // Update button state based on connection status
     if (this.shadowRoot) {
@@ -47,7 +51,9 @@ class HikvisionDoorbellCard extends HTMLElement {
   }
 
   render() {
-    const entityState = this._hass?.states[this.config.entity];
+    if (!this._hass || !this.config) return;
+
+    const entityState = this._hass.states[this.config.entity];
     const name = this.config.name || entityState?.attributes?.friendly_name || 'Doorbell';
     const serverUrl = entityState?.attributes?.server_url || 'http://localhost:8080';
 
