@@ -4,7 +4,8 @@ DOMAIN = "hikvision_doorbell"
 
 # Configuration
 CONF_SERVER_URL = "server_url"
-CONF_RTSP_URL = "rtsp_url"
+CONF_FRIGATE_URL = "frigate_url"
+CONF_CAMERA_NAME = "camera_name"
 
 # Services
 SERVICE_SEND_FILE = "send_file"

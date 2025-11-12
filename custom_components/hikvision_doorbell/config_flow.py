@@ -12,15 +12,16 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import CONF_SERVER_URL, CONF_RTSP_URL, DOMAIN
+from .const import CONF_SERVER_URL, CONF_FRIGATE_URL, CONF_CAMERA_NAME, DOMAIN
 from .coordinator import HikvisionDoorbellCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_SERVER_URL, default="http://localhost:8080"): str,
-        vol.Optional(CONF_RTSP_URL): str,
+        vol.Required(CONF_SERVER_URL): str,
+        vol.Required(CONF_FRIGATE_URL): str,
+        vol.Required(CONF_CAMERA_NAME): str,
     }
 )
 
@@ -57,12 +58,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
-                # Store server_url as CONF_HOST for coordinator
+                # Store configuration
                 data = {
                     CONF_HOST: user_input[CONF_SERVER_URL],
+                    CONF_FRIGATE_URL: user_input[CONF_FRIGATE_URL],
+                    CONF_CAMERA_NAME: user_input[CONF_CAMERA_NAME],
                 }
-                if CONF_RTSP_URL in user_input:
-                    data[CONF_RTSP_URL] = user_input[CONF_RTSP_URL]
 
                 return self.async_create_entry(title=info["title"], data=data)
 

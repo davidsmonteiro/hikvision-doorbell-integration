@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CONF_RTSP_URL, DEFAULT_NAME, DOMAIN
+from .const import CONF_FRIGATE_URL, CONF_CAMERA_NAME, DEFAULT_NAME, DOMAIN
 from .coordinator import HikvisionDoorbellCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,9 +22,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up Hikvision Doorbell camera from a config entry."""
     coordinator: HikvisionDoorbellCoordinator = hass.data[DOMAIN][config_entry.entry_id]
-    rtsp_url = config_entry.data.get(CONF_RTSP_URL)
+    frigate_url = config_entry.data.get(CONF_FRIGATE_URL)
+    camera_name = config_entry.data.get(CONF_CAMERA_NAME)
 
-    async_add_entities([HikvisionDoorbellCamera(coordinator, config_entry.entry_id, rtsp_url)])
+    async_add_entities([HikvisionDoorbellCamera(coordinator, config_entry.entry_id, frigate_url, camera_name)])
 
 
 class HikvisionDoorbellCamera(Camera):
@@ -38,13 +39,15 @@ class HikvisionDoorbellCamera(Camera):
         self,
         coordinator: HikvisionDoorbellCoordinator,
         entry_id: str,
-        rtsp_url: str | None,
+        frigate_url: str | None,
+        camera_name: str | None,
     ) -> None:
         """Initialize the camera."""
         super().__init__()
         self._coordinator = coordinator
         self._attr_unique_id = f"{entry_id}_camera"
-        self._rtsp_url = rtsp_url
+        self._frigate_url = frigate_url
+        self._camera_name = camera_name
 
     @property
     def device_info(self):
@@ -57,14 +60,14 @@ class HikvisionDoorbellCamera(Camera):
         }
 
     async def stream_source(self) -> str | None:
-        """Return the RTSP stream source."""
-        return self._rtsp_url
+        """Return the stream source - not used since we use Frigate/go2rtc."""
+        return None
 
     async def async_camera_image(
         self, width: int | None = None, height: int | None = None
     ) -> bytes | None:
         """Return a still image from the camera."""
-        # For RTSP cameras, Home Assistant will extract a frame from the stream
+        # Camera image will be fetched from Frigate
         return None
 
     @property
@@ -77,4 +80,6 @@ class HikvisionDoorbellCamera(Camera):
         """Return extra state attributes."""
         return {
             "server_url": self._coordinator.server_url,
+            "frigate_url": self._frigate_url,
+            "camera_name": self._camera_name,
         }

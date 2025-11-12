@@ -10,8 +10,9 @@ class HikvisionDoorbellCard extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this.peerConnection = null;
-    this.isConnected = false;
+    this.isPeerConnected = false;
     this.localStream = null;
+    this._streamInitialized = false;
   }
 
   setConfig(config) {
@@ -25,23 +26,30 @@ class HikvisionDoorbellCard extends HTMLElement {
     this._hass = hass;
 
     // Render on first hass set if not rendered yet
-    if (!this.shadowRoot.querySelector('.card-content')) {
+    if (!this.shadowRoot.querySelector('.camera-container')) {
       this.render();
+    } else {
+      // Just update the camera card's hass without re-rendering
+      const cameraCard = this.shadowRoot.getElementById('camera-card');
+      if (cameraCard) {
+        cameraCard.hass = hass;
+      }
     }
 
     // Update button state based on connection status
     if (this.shadowRoot) {
       const button = this.shadowRoot.querySelector('.talk-button');
+      const icon = button?.querySelector('ha-icon');
       const status = this.shadowRoot.querySelector('.status');
 
-      if (button && status) {
-        if (this.isConnected) {
-          button.textContent = 'Stop Talking';
+      if (button && icon && status) {
+        if (this.isPeerConnected) {
+          icon.setAttribute('icon', 'mdi:phone-hangup');
           button.classList.add('connected');
-          status.textContent = 'Connected - Speaking';
+          status.textContent = 'Speaking';
           status.classList.add('connected');
         } else {
-          button.textContent = 'Start Talking';
+          icon.setAttribute('icon', 'mdi:microphone');
           button.classList.remove('connected');
           status.textContent = 'Ready';
           status.classList.remove('connected');
@@ -56,34 +64,62 @@ class HikvisionDoorbellCard extends HTMLElement {
     const entityState = this._hass.states[this.config.entity];
     const name = this.config.name || entityState?.attributes?.friendly_name || 'Doorbell';
     const serverUrl = entityState?.attributes?.server_url || 'http://localhost:8080';
+    const cameraEntity = this.config.entity;
 
     this.shadowRoot.innerHTML = `
       <style>
         ha-card {
-          padding: 16px;
+          padding: 0;
+          overflow: hidden;
         }
-        .card-content {
+        .camera-container {
+          position: relative;
+          width: 100%;
+          background: #000;
+        }
+        #camera-card {
+          width: 100%;
+          display: block;
+        }
+        #camera-placeholder {
+          width: 100%;
+          min-height: 200px;
+        }
+        .camera-image {
+          width: 100%;
+          display: block;
+          min-height: 200px;
+        }
+        .controls-overlay {
+          position: absolute;
+          bottom: 4px;
+          left: 0;
+          right: 0;
           display: flex;
-          flex-direction: column;
+          flex-direction: column-reverse;
           align-items: center;
-          gap: 16px;
+          gap: 4px;
+          pointer-events: none;
         }
         .talk-button {
           background-color: var(--primary-color);
           color: var(--text-primary-color);
           border: none;
           border-radius: 50%;
-          width: 80px;
-          height: 80px;
-          font-size: 14px;
-          font-weight: bold;
+          width: 48px;
+          height: 48px;
+          font-size: 20px;
           cursor: pointer;
           transition: all 0.3s ease;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          pointer-events: auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         .talk-button:hover {
           transform: scale(1.05);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.6);
         }
         .talk-button:active {
           transform: scale(0.95);
@@ -97,43 +133,160 @@ class HikvisionDoorbellCard extends HTMLElement {
           50% { opacity: 0.7; }
         }
         .status {
-          font-size: 14px;
-          color: var(--secondary-text-color);
+          font-size: 12px;
+          color: white;
           font-weight: 500;
+          text-shadow: 0 1px 3px rgba(0,0,0,0.8);
         }
         .status.connected {
           color: var(--error-color);
         }
-        .info {
-          font-size: 12px;
-          color: var(--secondary-text-color);
-          text-align: center;
-          margin-top: 8px;
-        }
         .error {
           color: var(--error-color);
-          font-size: 12px;
+          font-size: 11px;
           text-align: center;
-          margin-top: 8px;
+          background: rgba(0,0,0,0.9);
+          padding: 4px 8px;
+          border-radius: 4px;
         }
       </style>
       <ha-card>
-        <div class="card-content">
-          <h2 class="card-header">${name}</h2>
-          <button class="talk-button">Start Talking</button>
-          <div class="status">Ready</div>
-          <div class="info">Click to start two-way audio communication</div>
-          <div class="error"></div>
+        <div class="camera-container">
+          <advanced-camera-card id="camera-card"></advanced-camera-card>
+          <div class="controls-overlay">
+            <button class="talk-button">
+              <ha-icon icon="mdi:microphone"></ha-icon>
+            </button>
+            <div class="status">Ready</div>
+            <div class="error"></div>
+          </div>
         </div>
       </ha-card>
     `;
+
+    // Configure the advanced camera card after it's ready
+    if (cameraEntity) {
+      const frigateUrl = entityState?.attributes?.frigate_url;
+      const cameraName = entityState?.attributes?.camera_name;
+
+      if (frigateUrl && cameraName) {
+        // Wait for the element to be defined and then configure it
+        customElements.whenDefined('advanced-camera-card').then(() => {
+          const cameraCard = this.shadowRoot.getElementById('camera-card');
+
+          // Wait for the element to be fully upgraded and ready
+          if (cameraCard) {
+            const configureCard = () => {
+              if (typeof cameraCard.setConfig === 'function') {
+                // Use the Frigate camera entity (camera.citofono, camera.giardino, etc)
+                const frigateCameraEntity = `camera.${cameraName}`;
+
+                // Configure camera card with the Frigate camera entity
+                const cardConfig = {
+              type: 'custom:advanced-camera-card',
+              cameras: [
+                {
+                  camera_entity: frigateCameraEntity,
+                  live_provider: 'go2rtc',
+                  image: {
+                    refresh_seconds: 1
+                  },
+                  dimensions: {
+                    aspect_ratio: '16:9',
+                    layout: {
+                      fit: 'fill'
+                    }
+                  }
+                }
+              ],
+              status_bar: {
+                style: 'none'
+              },
+              profiles: ['low-performance'],
+              live: {
+                controls: {
+                  builtin: false
+                },
+                show_image_during_load: true
+              },
+              menu: {
+                style: 'overlay',
+                position: 'bottom',
+                buttons: {
+                  microphone: {
+                    enabled: false
+                  },
+                  frigate: {
+                    enabled: false
+                  },
+                  cameras: {
+                    enabled: false
+                  },
+                  substreams: {
+                    enabled: false
+                  },
+                  live: {
+                    enabled: false
+                  },
+                  clips: {
+                    enabled: false
+                  },
+                  snapshots: {
+                    enabled: false
+                  },
+                  download: {
+                    enabled: false
+                  },
+                  camera_ui: {
+                    enabled: false
+                  },
+                  fullscreen: {
+                    enabled: false
+                  },
+                  timeline: {
+                    enabled: false
+                  },
+                  media_player: {
+                    enabled: false
+                  },
+                  mute: {
+                    enabled: false
+                  }
+                }
+              }
+            };
+
+            // Pass through elements configuration if provided
+            if (this.config.elements) {
+              cardConfig.elements = this.config.elements;
+            }
+
+                cameraCard.setConfig(cardConfig);
+                cameraCard.hass = this._hass;
+              } else {
+                // Element not ready yet, wait for it
+                requestAnimationFrame(configureCard);
+              }
+            };
+
+            // Start configuring
+            configureCard();
+          }
+        });
+      }
+    }
 
     const button = this.shadowRoot.querySelector('.talk-button');
     button.addEventListener('click', () => this.toggleAudio(serverUrl));
   }
 
+  disconnectedCallback() {
+    // Cleanup if needed
+    this._streamInitialized = false;
+  }
+
   async toggleAudio(serverUrl) {
-    if (this.isConnected) {
+    if (this.isPeerConnected) {
       this.stopAudio();
     } else {
       await this.startAudio(serverUrl);
@@ -231,12 +384,15 @@ class HikvisionDoorbellCard extends HTMLElement {
       // Set remote description
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
 
-      this.isConnected = true;
+      this.isPeerConnected = true;
       statusDiv.textContent = 'Connecting...';
 
       // Update UI
       const button = this.shadowRoot.querySelector('.talk-button');
-      button.textContent = 'Stop Talking';
+      const icon = button?.querySelector('ha-icon');
+      if (icon) {
+        icon.setAttribute('icon', 'mdi:phone-hangup');
+      }
       button.classList.add('connected');
 
     } catch (error) {
@@ -262,11 +418,14 @@ class HikvisionDoorbellCard extends HTMLElement {
       this.localStream = null;
     }
 
-    this.isConnected = false;
+    this.isPeerConnected = false;
 
     // Update UI
     const button = this.shadowRoot.querySelector('.talk-button');
-    button.textContent = 'Start Talking';
+    const icon = button?.querySelector('ha-icon');
+    if (icon) {
+      icon.setAttribute('icon', 'mdi:microphone');
+    }
     button.classList.remove('connected');
     statusDiv.textContent = 'Ready';
     statusDiv.classList.remove('connected');
