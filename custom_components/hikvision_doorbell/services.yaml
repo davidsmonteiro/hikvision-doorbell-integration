@@ -1,19 +1,19 @@
-send_file:
-  name: Send Audio File
-  description: Send an audio file to the doorbell speaker (any common audio format - server handles conversion)
+play_file:
+  name: Play Audio File
+  description: Converts and plays an audio file on the doorbell speaker. The file will be automatically converted to G.711 µ-law format using ffmpeg.
   fields:
     entity_id:
       name: Entity
-      description: Camera entity to send audio to
+      description: The doorbell camera entity to play audio on
       required: true
       selector:
         entity:
           domain: camera
           integration: hikvision_doorbell
     audio_file:
-      name: Audio File
-      description: Path to audio file (MP3, WAV, OGG, etc. - will be automatically converted)
+      name: Audio File Path
+      description: Path to the audio file to play. Any audio format supported by ffmpeg can be used (mp3, wav, ogg, etc.). The file will be converted to G.711 µ-law automatically.
       required: true
-      example: "/config/doorbell_message.mp3"
+      example: "/config/www/doorbell_chime.mp3"
       selector:
         text:

@@ -8,7 +8,7 @@ CONF_FRIGATE_URL = "frigate_url"
 CONF_CAMERA_NAME = "camera_name"
 
 # Services
-SERVICE_SEND_FILE = "send_file"
+SERVICE_PLAY_FILE = "play_file"
 
 # Service attributes
 ATTR_AUDIO_FILE = "audio_file"
