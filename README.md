@@ -41,7 +41,7 @@ Home Assistant custom integration providing native WebRTC two-way audio support 
 
 The integration provides a custom card that combines video streaming with WebRTC two-way audio.
 
-![Hikvision Doorbell Card](@hikvision-doorbell-integration/card-screenshot.png)
+![screenshot](https://github.com/acardace/hikvision-doorbell-integration/blob/main/card-screenshot.png)
 
 #### Basic Configuration
 
