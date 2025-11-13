@@ -9,6 +9,7 @@ CONF_CAMERA_NAME = "camera_name"
 
 # Services
 SERVICE_PLAY_FILE = "play_file"
+SERVICE_ABORT = "abort"
 
 # Service attributes
 ATTR_AUDIO_FILE = "audio_file"

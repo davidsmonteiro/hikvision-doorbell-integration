@@ -17,3 +17,16 @@ play_file:
       example: "/config/www/doorbell_chime.mp3"
       selector:
         text:
+
+abort:
+  name: Abort Operations
+  description: Abort all active operations (play-file and WebRTC sessions) and release all audio channels on the doorbell. Use this to stop any ongoing audio playback or two-way audio sessions.
+  fields:
+    entity_id:
+      name: Entity
+      description: The doorbell camera entity to abort operations on
+      required: true
+      selector:
+        entity:
+          domain: camera
+          integration: hikvision_doorbell

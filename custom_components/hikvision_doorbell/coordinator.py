@@ -73,3 +73,29 @@ class HikvisionDoorbellCoordinator:
         except (asyncio.TimeoutError, aiohttp.ClientError, OSError) as err:
             _LOGGER.error("Error sending audio file: %s", err)
             return False
+
+    async def async_abort_operations(self) -> bool:
+        """Abort all active operations (play-file and WebRTC sessions).
+
+        This will:
+        - Cancel any ongoing play-file operations
+        - Close all WebRTC sessions
+        - Release all audio channels on the doorbell
+        """
+        try:
+            async with async_timeout.timeout(DEFAULT_TIMEOUT):
+                async with self._session.post(
+                    f"{self.server_url}/api/abort"
+                ) as response:
+                    if response.status == 200:
+                        _LOGGER.info("All operations aborted successfully")
+                        return True
+                    else:
+                        body = await response.text()
+                        _LOGGER.error(
+                            "Failed to abort operations: %s - %s", response.status, body
+                        )
+                        return False
+        except (asyncio.TimeoutError, aiohttp.ClientError) as err:
+            _LOGGER.error("Error aborting operations: %s", err)
+            return False

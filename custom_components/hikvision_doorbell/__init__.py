@@ -14,10 +14,12 @@ from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers import entity_registry as er
 
 from .const import (
     ATTR_AUDIO_FILE,
     DOMAIN,
+    SERVICE_ABORT,
     SERVICE_PLAY_FILE,
 )
 from .coordinator import HikvisionDoorbellCoordinator
@@ -30,6 +32,12 @@ SERVICE_PLAY_FILE_SCHEMA = vol.Schema(
     {
         vol.Required("entity_id"): cv.entity_id,
         vol.Required(ATTR_AUDIO_FILE): cv.string,
+    }
+)
+
+SERVICE_ABORT_SCHEMA = vol.Schema(
+    {
+        vol.Required("entity_id"): cv.entity_id,
     }
 )
 
@@ -59,7 +67,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def handle_play_file(call: ServiceCall) -> None:
         """Handle play_file service call.
 
-        Converts audio file to G.711 µ-law using ffmpeg and sends it to the doorbell speaker.
+        Sends audio file to the doorbell speaker. If the file is not in WAV format,
+        it will be converted to G.711 µ-law using ffmpeg.
         The server handles session management automatically.
         """
         coordinator = _get_coordinator_from_entity(hass, call.data["entity_id"])
@@ -69,24 +78,47 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not os.path.isfile(audio_file):
             raise HomeAssistantError(f"Audio file not found: {audio_file}")
 
-        # Convert audio file to G.711 µ-law using ffmpeg
-        converted_file = None
-        try:
-            converted_file = await _convert_audio_to_ulaw(hass, audio_file)
+        # Check if file is already in WAV format
+        is_wav = audio_file.lower().endswith(".wav")
 
-            # Send converted audio file
-            if not await coordinator.async_send_audio_file(converted_file):
+        if is_wav:
+            # Use the file directly without conversion
+            _LOGGER.debug("File is already in WAV format, skipping conversion")
+            if not await coordinator.async_send_audio_file(audio_file):
                 raise HomeAssistantError("Failed to send audio file")
-        finally:
-            # Clean up temporary converted file
-            if converted_file and os.path.exists(converted_file):
-                try:
-                    os.unlink(converted_file)
-                except OSError as err:
-                    _LOGGER.warning("Failed to delete temporary file %s: %s", converted_file, err)
+        else:
+            # Convert audio file to G.711 µ-law using ffmpeg
+            converted_file = None
+            try:
+                converted_file = await _convert_audio_to_ulaw(hass, audio_file)
+
+                # Send converted audio file
+                if not await coordinator.async_send_audio_file(converted_file):
+                    raise HomeAssistantError("Failed to send audio file")
+            finally:
+                # Clean up temporary converted file
+                if converted_file and os.path.exists(converted_file):
+                    try:
+                        os.unlink(converted_file)
+                    except OSError as err:
+                        _LOGGER.warning("Failed to delete temporary file %s: %s", converted_file, err)
+
+    async def handle_abort(call: ServiceCall) -> None:
+        """Handle abort service call.
+
+        Aborts all active operations (play-file and WebRTC sessions)
+        and releases all audio channels on the doorbell.
+        """
+        coordinator = _get_coordinator_from_entity(hass, call.data["entity_id"])
+
+        if not await coordinator.async_abort_operations():
+            raise HomeAssistantError("Failed to abort operations")
 
     hass.services.async_register(
         DOMAIN, SERVICE_PLAY_FILE, handle_play_file, schema=SERVICE_PLAY_FILE_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_ABORT, handle_abort, schema=SERVICE_ABORT_SCHEMA
     )
 
     return True
@@ -97,9 +129,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
 
-    # Unregister service if this is the last entry
+    # Unregister services if this is the last entry
     if not hass.data[DOMAIN]:
         hass.services.async_remove(DOMAIN, SERVICE_PLAY_FILE)
+        hass.services.async_remove(DOMAIN, SERVICE_ABORT)
 
     return unload_ok
 
@@ -107,8 +140,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 def _get_coordinator_from_entity(hass: HomeAssistant, entity_id: str) -> HikvisionDoorbellCoordinator:
     """Get coordinator from entity_id."""
     # Extract entry_id from entity registry
-    entity_registry = hass.helpers.entity_registry.async_get(hass)
-    entity_entry = entity_registry.async_get(entity_id)
+    entity_reg = er.async_get(hass)
+    entity_entry = entity_reg.async_get(entity_id)
 
     if not entity_entry:
         raise HomeAssistantError(f"Entity not found: {entity_id}")
