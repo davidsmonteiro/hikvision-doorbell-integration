@@ -5,29 +5,29 @@ Home Assistant custom integration providing native WebRTC two-way audio support 
 ## Features
 
 - **Native WebRTC two-way audio** - Real-time, low-latency bidirectional audio communication
-- **Custom Lovelace card** - Integrated video display with one-click talk functionality
 - **Play audio files** - Send pre-recorded messages to the doorbell speaker
-- **Advanced Camera Card integration** - Supports custom elements and menu buttons
+- **Abort operations** - Stop active audio sessions on demand
 
 ## Requirements
 
 - [hikvision-doorbell-server](https://github.com/acardace/hikvision-doorbell-server) running and accessible from Home Assistant
 - [Frigate](https://frigate.video/) with go2rtc configured for camera streaming
-- [Advanced Camera Card](https://github.com/dermotduffy/advanced-camera-card) installed in Home Assistant
+- [Hikvision Doorbell Card](https://github.com/acardace/hikvision-doorbell-card) for WebRTC two-way audio UI
 - Hikvision doorbell compatible with ISAPI two-way audio
 - Home Assistant accessible via HTTPS (required for browser microphone access)
 
 ## Installation
 
-1. Copy the `custom_components/hikvision_doorbell` directory to your Home Assistant `custom_components` folder
-2. Copy the `www/hikvision-doorbell-card.js` file to your Home Assistant `www` folder
+### HACS (Recommended)
+
+1. Add this repository as a custom repository in HACS:
+   - Go to HACS → Integrations
+   - Click the three dots menu → Custom repositories
+   - Add `https://github.com/acardace/hikvision-doorbell-integration`
+   - Category: Integration
+2. Click Install
 3. Restart Home Assistant
-4. Add the Lovelace resource:
-   - Go to Settings → Dashboards → Resources
-   - Click "Add Resource"
-   - URL: `/local/hikvision-doorbell-card.js`
-   - Resource type: JavaScript Module
-5. Add the integration:
+4. Add the integration:
    - Go to Settings → Devices & Services → Add Integration
    - Search for "Hikvision Doorbell Two-Way Audio"
    - Configure the integration:
@@ -35,56 +35,21 @@ Home Assistant custom integration providing native WebRTC two-way audio support 
      - **Frigate URL**: `https://frigate.example.com`
      - **Camera Name**: The camera name as configured in Frigate (e.g., `doorbell`)
 
-## Usage
+### Manual
 
-### Custom Lovelace Card
+1. Copy the `custom_components/hikvision_doorbell` directory to your Home Assistant `custom_components` folder
+2. Restart Home Assistant
+3. Add the integration:
+   - Go to Settings → Devices & Services → Add Integration
+   - Search for "Hikvision Doorbell Two-Way Audio"
+   - Configure the integration:
+     - **Server URL**: `https://doorbell-server.example.com`
+     - **Frigate URL**: `https://frigate.example.com`
+     - **Camera Name**: The camera name as configured in Frigate (e.g., `doorbell`)
 
-The integration provides a custom card that combines video streaming with WebRTC two-way audio.
+## Custom Lovelace Card
 
-![screenshot](https://github.com/acardace/hikvision-doorbell-integration/blob/main/card-screenshot.png)
-
-#### Basic Configuration
-
-```yaml
-type: custom:hikvision-doorbell-card
-entity: camera.doorbell
-```
-
-#### With Advanced Camera Card Elements
-
-The card supports custom elements from the Advanced Camera Card that appear in the menu overlay:
-
-```yaml
-type: custom:hikvision-doorbell-card
-entity: camera.doorbell
-elements:
-  - type: state-label
-    entity: sensor.doorbell_battery
-    style:
-      top: 10px
-      left: 10px
-      color: white
-      font-size: 14px
-  - type: icon
-    icon: mdi:bell
-    tap_action:
-      action: call-service
-      service: button.press
-      service_data:
-        entity_id: button.doorbell_ring
-    style:
-      top: 10px
-      right: 10px
-      color: white
-```
-
-#### How to Use
-
-1. Click the microphone button to start talking
-2. Allow microphone access when prompted by the browser
-3. Wait for WebRTC connection (typically < 2 seconds)
-4. Speak through your microphone - you'll hear audio from the doorbell in real-time
-5. Click the hang-up button to stop
+For WebRTC two-way audio with a custom UI, install the [Hikvision Doorbell Card](https://github.com/acardace/hikvision-doorbell-card).
 
 ## Services
 
