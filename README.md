@@ -1,295 +1,154 @@
-# Hikvision Doorbell Two-Way Audio - Home Assistant Integration
+# Hikvision Doorbell Integration
 
-Custom Home Assistant integration for two-way audio communication with Hikvision doorbells using WebRTC.
+Home Assistant custom integration providing native WebRTC two-way audio support for Hikvision doorbells with low latency.
 
 ## Features
 
-- 🎥 Camera entity with RTSP video stream
-- 🎤 **WebRTC-based two-way audio** via custom Lovelace card
-- 📢 Service to send pre-recorded audio files to doorbell
-- 🚀 Real-time, low-latency audio streaming
-- 🎨 Beautiful custom UI card with visual feedback
-- 🔒 Local network only (no external servers required)
-- 🌐 Works with Home Assistant Container, Core, Supervised, and OS
+- **Native WebRTC two-way audio** - Real-time, low-latency bidirectional audio communication
+- **Custom Lovelace card** - Integrated video display with one-click talk functionality
+- **Play audio files** - Send pre-recorded messages to the doorbell speaker
+- **Advanced Camera Card integration** - Supports custom elements and menu buttons
 
-## Prerequisites
+## Requirements
 
-You need the **Hikvision Doorbell Server** running and accessible from Home Assistant:
-
-Repository: https://github.com/acardace/hikvision-doorbell-server
-
-### Quick Start (Docker/Podman)
-
-```bash
-# Create config.yaml
-cat > config.yaml <<EOF
-doorbell:
-  host: "192.168.1.100"
-  username: "admin"
-  password: "your_password"
-server:
-  host: "0.0.0.0"
-  port: 8080
-EOF
-
-# Run server
-docker run -d \
-  --name hikvision-doorbell-server \
-  -p 8080:8080 \
-  -v $(pwd)/config.yaml:/app/config.yaml:ro \
-  ghcr.io/acardace/hikvision-doorbell-server:latest
-```
-
-### Kubernetes Deployment
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: doorbell-config
-data:
-  config.yaml: |
-    doorbell:
-      host: "192.168.1.100"
-      username: "admin"
-      password: "your_password"
-    server:
-      host: "0.0.0.0"
-      port: 8080
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: hikvision-doorbell-server
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: hikvision-doorbell
-  template:
-    metadata:
-      labels:
-        app: hikvision-doorbell
-    spec:
-      containers:
-      - name: server
-        image: ghcr.io/acardace/hikvision-doorbell-server:latest
-        ports:
-        - containerPort: 8080
-        volumeMounts:
-        - name: config
-          mountPath: /app/config.yaml
-          subPath: config.yaml
-      volumes:
-      - name: config
-        configMap:
-          name: doorbell-config
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: hikvision-doorbell-server
-spec:
-  selector:
-    app: hikvision-doorbell
-  ports:
-  - port: 8080
-    targetPort: 8080
-```
+- [hikvision-doorbell-server](https://github.com/acardace/hikvision-doorbell-server) running and accessible from Home Assistant
+- [Frigate](https://frigate.video/) with go2rtc configured for camera streaming
+- [Advanced Camera Card](https://github.com/dermotduffy/advanced-camera-card) installed in Home Assistant
+- Hikvision doorbell compatible with ISAPI two-way audio
+- Home Assistant accessible via HTTPS (required for browser microphone access)
 
 ## Installation
 
-### HACS (Recommended)
-
-1. Add this repository as a custom repository in HACS
-2. Search for "Hikvision Doorbell" in HACS
-3. Click Install
-4. Restart Home Assistant
-
-### Manual Installation
-
-1. Copy the `custom_components/hikvision_doorbell` directory to your Home Assistant `config/custom_components/` directory
-2. Copy the `www/hikvision-doorbell-card.js` file to your `config/www/` directory
+1. Copy the `custom_components/hikvision_doorbell` directory to your Home Assistant `custom_components` folder
+2. Copy the `www/hikvision-doorbell-card.js` file to your Home Assistant `www` folder
 3. Restart Home Assistant
-4. Add Lovelace resource (see Custom Card section)
-
-## Configuration
-
-1. Go to **Settings** → **Devices & Services**
-2. Click **Add Integration**
-3. Search for "Hikvision Doorbell"
-4. Enter your configuration:
-   - **Server URL**: URL to the server (e.g., `http://192.168.1.50:8080` or `http://hikvision-doorbell-server:8080`)
-   - **RTSP URL** (optional): Your doorbell's RTSP stream URL (e.g., `rtsp://admin:password@192.168.1.100:554/Streaming/Channels/101`)
-5. Click Submit
+4. Add the Lovelace resource:
+   - Go to Settings → Dashboards → Resources
+   - Click "Add Resource"
+   - URL: `/local/hikvision-doorbell-card.js`
+   - Resource type: JavaScript Module
+5. Add the integration:
+   - Go to Settings → Devices & Services → Add Integration
+   - Search for "Hikvision Doorbell Two-Way Audio"
+   - Configure the integration:
+     - **Server URL**: `https://doorbell-server.example.com`
+     - **Frigate URL**: `https://frigate.example.com`
+     - **Camera Name**: The camera name as configured in Frigate (e.g., `doorbell`)
 
 ## Usage
 
-### Custom Lovelace Card (WebRTC Two-Way Audio)
+### Custom Lovelace Card
 
-The integration includes a custom Lovelace card for real-time two-way audio communication.
+The integration provides a custom card that combines video streaming with WebRTC two-way audio.
 
-#### Setup
+![Hikvision Doorbell Card](@hikvision-doorbell-integration/card-screenshot.png)
 
-1. **Add Resource** (only needed for manual installation):
-   - Go to **Settings** → **Dashboards** → **Resources**
-   - Click "Add Resource"
-   - URL: `/hacsfiles/hikvision_doorbell/hikvision-doorbell-card.js`
-   - Resource type: **JavaScript Module**
+#### Basic Configuration
 
-2. **Add Card to Dashboard**:
+```yaml
+type: custom:hikvision-doorbell-card
+entity: camera.doorbell
+```
 
-   ```yaml
-   type: custom:hikvision-doorbell-card
-   entity: camera.hikvision_doorbell
-   name: Front Door
-   ```
+#### With Advanced Camera Card Elements
+
+The card supports custom elements from the Advanced Camera Card that appear in the menu overlay:
+
+```yaml
+type: custom:hikvision-doorbell-card
+entity: camera.doorbell
+elements:
+  - type: state-label
+    entity: sensor.doorbell_battery
+    style:
+      top: 10px
+      left: 10px
+      color: white
+      font-size: 14px
+  - type: icon
+    icon: mdi:bell
+    tap_action:
+      action: call-service
+      service: button.press
+      service_data:
+        entity_id: button.doorbell_ring
+    style:
+      top: 10px
+      right: 10px
+      color: white
+```
 
 #### How to Use
 
-1. Click "Start Talking" button
-2. Allow microphone access when prompted
-3. Wait for WebRTC connection (usually < 2 seconds)
-4. Speak through your microphone - you'll hear doorbell audio too
-5. Click "Stop Talking" when done
+1. Click the microphone button to start talking
+2. Allow microphone access when prompted by the browser
+3. Wait for WebRTC connection (typically < 2 seconds)
+4. Speak through your microphone - you'll hear audio from the doorbell in real-time
+5. Click the hang-up button to stop
 
-**Browser Requirements**: Chrome 90+, Firefox 88+, Safari 14.1+, or mobile browsers with WebRTC support.
+## Services
 
-### Send Audio File Service
+### `hikvision_doorbell.play_file`
 
-Send a pre-recorded audio file to the doorbell speaker (any format - MP3, WAV, OGG, etc.):
+Play an audio file through the doorbell speaker.
 
+**Parameters:**
+- `entity_id`: The doorbell camera entity
+- `audio_file`: Path to the audio file (e.g., `/config/media/chime.wav`)
+
+WAV files are sent directly without conversion. Other formats (MP3, OGG, etc.) are automatically converted to G.711 µ-law using ffmpeg.
+
+**Example:**
 ```yaml
-service: hikvision_doorbell.send_file
-target:
-  entity_id: camera.hikvision_doorbell
+service: hikvision_doorbell.play_file
 data:
-  audio_file: /config/doorbell_message.mp3
+  entity_id: camera.doorbell
+  audio_file: /config/media/doorbell_chime.mp3
 ```
 
-**Note**: The server automatically converts audio to G.711 µ-law format required by the doorbell.
+### `hikvision_doorbell.abort`
 
-### Example Automation
+Stop all active operations (play-file and WebRTC sessions) and release audio channels.
+
+**Parameters:**
+- `entity_id`: The doorbell camera entity
+
+**Example:**
+```yaml
+service: hikvision_doorbell.abort
+data:
+  entity_id: camera.doorbell
+```
+
+## Example Automation
 
 Play a welcome message when someone presses the doorbell:
 
 ```yaml
 automation:
-  - alias: "Doorbell Pressed - Play Welcome"
+  - alias: "Doorbell - Play Welcome Message"
     trigger:
       - platform: state
         entity_id: binary_sensor.doorbell_button
         to: "on"
     action:
-      - service: hikvision_doorbell.send_file
-        target:
-          entity_id: camera.hikvision_doorbell
+      - service: hikvision_doorbell.play_file
         data:
-          audio_file: /config/sounds/welcome.mp3
-```
-
-### Dashboard Examples
-
-#### Simple Two-Way Audio Card
-
-```yaml
-type: custom:hikvision-doorbell-card
-entity: camera.hikvision_doorbell
-```
-
-#### Combined Video + Audio Card
-
-```yaml
-type: vertical-stack
-cards:
-  - type: picture-entity
-    entity: camera.hikvision_doorbell
-    camera_view: live
-  - type: custom:hikvision-doorbell-card
-    entity: camera.hikvision_doorbell
-    name: Talk to Visitor
-```
-
-#### Grid Layout
-
-```yaml
-type: grid
-columns: 2
-cards:
-  - type: picture-entity
-    entity: camera.hikvision_doorbell
-    camera_view: live
-  - type: custom:hikvision-doorbell-card
-    entity: camera.hikvision_doorbell
-  - type: button
-    name: Play Welcome
-    tap_action:
-      action: call-service
-      service: hikvision_doorbell.send_file
-      service_data:
-        entity_id: camera.hikvision_doorbell
-        audio_file: /config/sounds/welcome.mp3
-  - type: button
-    name: Play Away Message
-    tap_action:
-      action: call-service
-      service: hikvision_doorbell.send_file
-      service_data:
-        entity_id: camera.hikvision_doorbell
-        audio_file: /config/sounds/away.mp3
-```
-
-## Advanced Usage
-
-### CLI Tool
-
-The server includes a CLI tool for testing:
-
-```bash
-# Send audio file
-./doorbell-cli send -f message.mp3 -s http://192.168.1.50:8080
-
-# Two-way audio from terminal
-./doorbell-cli speak -s http://192.168.1.50:8080
-```
-
-### Audio Conversion (Optional)
-
-While the server handles conversion automatically, you can pre-convert files for faster playback:
-
-```bash
-ffmpeg -i input.mp3 -ar 8000 -ac 1 -f mulaw output.raw
+          entity_id: camera.hikvision_doorbell
+          audio_file: /config/sounds/welcome.wav
 ```
 
 ## Troubleshooting
 
-### Cannot connect to server
-
-- Verify server is running: `curl http://SERVER_URL/healthz`
-- Check the server URL in integration configuration
-- Ensure firewall rules allow access to port 8080
-- Check server logs: `docker logs hikvision-doorbell-server`
-
 ### WebRTC card not connecting
 
-- Ensure browser supports WebRTC (Chrome 90+, Firefox 88+, Safari 14.1+)
-- Check browser console for errors (F12 → Console)
 - Verify microphone permission was granted
 - Ensure server URL is accessible from your device
-- Try reloading the page
 - Check that you're using HTTPS (required for mic access, except on localhost)
-
-### No audio from doorbell
-
-- Check device audio output settings
-- Ensure browser audio isn't muted
-- Verify RTSP stream works (test with VLC)
-- Check server logs for errors
 
 ### File upload fails
 
 - Ensure file path is accessible to Home Assistant
-- Check file format is supported (MP3, WAV, OGG, FLAC, etc.)
 - Verify server has ffmpeg installed (included in Docker image)
 - Check server logs for conversion errors
 
@@ -333,4 +192,4 @@ For issues and feature requests:
 
 ## License
 
-MIT License - see individual repositories for details.
+Apache License 2.0
