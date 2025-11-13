@@ -1,7 +1,4 @@
 {
-  "name": "Hikvision Doorbell Two-Way Audio",
-  "render_readme": true,
-  "domains": ["camera"],
-  "iot_class": "Local Polling",
-  "homeassistant": "2024.1.0"
+    "name": "Hikvision Doorbell Two-Way Audio",
+    "render_readme": true
 }
