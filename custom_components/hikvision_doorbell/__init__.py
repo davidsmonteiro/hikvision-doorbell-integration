@@ -59,7 +59,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     # Register Lovelace resource for custom card
-    _register_lovelace_resource(hass)
+    await _register_lovelace_resource(hass)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -204,14 +204,39 @@ async def _convert_audio_to_ulaw(hass: HomeAssistant, input_file: str) -> str:
         raise HomeAssistantError(f"Failed to convert audio: {err}") from err
 
 
-def _register_lovelace_resource(hass: HomeAssistant) -> None:
-    """Register the custom Lovelace card resource."""
-    # The card will be available at:
-    # /local/community/hikvision_doorbell/hikvision-doorbell-card.js
-    # Users need to add it manually to their Lovelace resources or use HACS
-    _LOGGER.info(
-        "Hikvision Doorbell custom card is available. "
-        "Add the following resource to your Lovelace dashboard:\n"
-        "URL: /hacsfiles/hikvision_doorbell/hikvision-doorbell-card.js\n"
-        "Type: JavaScript Module"
-    )
+async def _register_lovelace_resource(hass: HomeAssistant) -> None:
+    """Register the custom Lovelace card resource automatically.
+
+    If the card JS is bundled in the integration's www folder (e.g., via addon),
+    it will be automatically registered. Otherwise, users need to add it manually.
+    """
+    card_path = os.path.join(os.path.dirname(__file__), "www", "hikvision-doorbell-card.js")
+    card_url = "/hikvision_doorbell/hikvision-doorbell-card.js"
+
+    if not os.path.isfile(card_path):
+        _LOGGER.debug("Card JS not found at %s, skipping auto-registration", card_path)
+        return
+
+    # Register static path for the card
+    hass.http.register_static_path(card_url, card_path, cache_headers=True)
+    _LOGGER.info("Registered Hikvision Doorbell card at %s", card_url)
+
+    # Add to Lovelace resources if not already present
+    try:
+        resources = await hass.components.lovelace.async_get_resources()
+        resource_urls = [r.get("url", "") for r in resources]
+
+        if card_url not in resource_urls:
+            await hass.components.lovelace.async_create_resource({
+                "url": card_url,
+                "res_type": "module"
+            })
+            _LOGGER.info("Added Hikvision Doorbell card to Lovelace resources")
+        else:
+            _LOGGER.debug("Hikvision Doorbell card already in Lovelace resources")
+    except Exception as err:
+        _LOGGER.warning(
+            "Could not auto-add card to Lovelace resources: %s. "
+            "Please add manually: URL=%s, Type=JavaScript Module",
+            err, card_url
+        )
